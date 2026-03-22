@@ -91,6 +91,7 @@ def setup_airflow_connections(*connections: Connection) -> None:
     finally:
         session.close()
 
+
 # Функция для выполнения setup_airflow_connections в рамках оператора
 def run_setup_connections(**kwargs): # pylint: disable=unused-argument
     """Создает подключения внутри оператора"""
@@ -103,8 +104,7 @@ with DAG(
     dag_id="data_pipeline",
     start_date=datetime(year=2026, month=1, day=25),
     schedule_interval=timedelta(minutes=60),
-    catchup=False,
-    max_active_runs=1
+    catchup=False
 ) as dag:
     # Задача для создания подключений
     setup_connections = PythonOperator(

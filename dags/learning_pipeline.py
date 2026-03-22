@@ -107,15 +107,13 @@ with DAG(
     dag_id="learning_model",
     start_date=datetime(year=2026, month=3, day=16),
     schedule_interval=timedelta(minutes=60),
-    catchup=False,
-    max_active_runs=1
+    catchup=False
 ) as dag:
     # Задача для создания подключений
     setup_connections = PythonOperator(
         task_id="setup_connections",
         python_callable=run_setup_connections,
     )
-
 
     # 1 этап: создание Dataproc клаcтера
     create_spark_cluster = DataprocCreateClusterOperator(
@@ -131,7 +129,7 @@ with DAG(
         cluster_image_version="2.0",
 
         # masternode
-        masternode_resource_preset="s3-c4-m16",
+        masternode_resource_preset="s3-c2-m8",
         masternode_disk_type="network-ssd",
         masternode_disk_size=20,
 
