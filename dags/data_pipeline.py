@@ -104,7 +104,8 @@ with DAG(
     dag_id="data_pipeline",
     start_date=datetime(year=2026, month=1, day=25),
     schedule_interval=timedelta(minutes=60),
-    catchup=False
+    catchup=False,
+    max_active_runs=1
 ) as dag:
     # Задача для создания подключений
     setup_connections = PythonOperator(
