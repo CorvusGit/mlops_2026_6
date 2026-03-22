@@ -31,6 +31,27 @@ module "airflow-cluster" {
   provider_config    = var.yc_config
 }
 
+module "mlflow-vm" {
+  source             = "./modules/mlflow-vm"
+  
+  image_id = var.mlfloe_image_id
+  instance_name         = var.mlflow_instance_name
+  service_account_id = var.for_mlflow_service_account_id
+  subnet_id = var.yc_subnet_name
+  ip_address = var.mlflow_ip_address
+
+  access_key = var.mlflow_access_key
+  secret_key = var.mlflow_secret_key
+  bucket_name = var.mlflow_buket_name
+  
+  pg_db_name = var.pg_db_name
+  pg_user  = var.pg_user
+  pg_password = var.pg_password
+  backup_interval = var.mlflow_backup_interval
+  
+  public_key_path = var.mlflow_public_key_path
+  provider_config = var.yc_config
+}
 
 # Storage ресурсы
 # устраняем ошибку apply
@@ -73,7 +94,7 @@ locals {
   var_names = [
     "YC_ZONE", "YC_FOLDER_ID", "YC_SUBNET_ID", "YC_SSH_PUBLIC_KEY",
     "S3_ENDPOINT_URL", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_BUCKET_NAME",
-    "DP_SECURITY_GROUP_ID", "DP_SA_ID", "DP_SA_JSON"
+    "DP_SECURITY_GROUP_ID", "DP_SA_ID", "DP_SA_JSON","MLFLOW_IP", "MLFLOW_PORT"
   ]
 
   # Формируем мапу значений
@@ -89,6 +110,8 @@ locals {
     DP_SECURITY_GROUP_ID = module.network.security_group_id
     DP_SA_AUTH_KEY_PUBLIC_KEY = module.iam.public_key
     DP_SA_ID             = module.iam.service_account_id
+    MLFLOW_IP            = module.mlflow.mlflow_public_ip
+    MLFLOW_PORT          = var.mlflow_port
     DP_SA_JSON           = jsonencode({
       id                 = module.iam.auth_key_id
       service_account_id = module.iam.service_account_id

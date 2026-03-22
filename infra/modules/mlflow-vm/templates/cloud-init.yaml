@@ -1,0 +1,64 @@
+
+#cloud-config
+datasource:
+  Ec2:
+    strict_id: false
+ssh_pwauth: no
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-plugin
+users:
+  - name: ubuntu
+    sudo: 'ALL=(ALL) NOPASSWD:ALL'
+    shell: /bin/bash
+    ssh_authorized_keys:
+      ${public_key}
+
+write_files:
+  # ---------- .env ----------
+  - path: /opt/app/.env
+    permissions: '0600'
+    content: |
+      POSTGRES_USER=${pg_user}
+      POSTGRES_PASSWORD=${pg_password}
+      POSTGRES_DB=${pg_db_name}
+
+      YC_ACCESS_KEY=${access_key}
+      YC_SECRET_KEY=${secret_key}
+      S3_BUCKET=${bucket_name}
+      BACKUP_INTERVAL=${backup_interval}
+
+    defer: true
+    
+  # ---------- docker-compose ----------
+  - path: /opt/app/docker-compose.yml
+    permissions: '0644'
+    content: |
+      ${docker_compose}
+    defer: true
+
+  # ---------- Dockerfile postgres ----------
+  - path: /opt/app/postgres_docker/Dockerfile
+    permissions: '0644'
+    content: |
+      ${postgres_docker}
+    defer: true
+
+  # ---------- Dockerfile mlflow ----------
+  - path: /opt/app/mlflow_docker/Dockerfile
+    permissions: '0644'
+    content: |
+      ${mlflow_docker}
+    defer: true
+
+runcmd:
+  - mkdir -p /opt/app/postgres_docker
+  - mkdir -p /opt/app/mlflow_docker
+
+  - systemctl enable docker
+  - systemctl start docker
+
+  - cd /opt/app
+  - docker compose build
+  - docker compose up -d

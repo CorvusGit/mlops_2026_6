@@ -60,3 +60,60 @@ variable "airflow_db_conn_default" {
 variable "admin_login" {  
   type = string
 }
+
+
+variable "mlflow_instance_name" {
+  type    = string
+}
+
+variable "mlfloe_image_id" {
+  type    = string
+}
+
+variable "mlflow_public_key_path" {
+  type    = string
+}
+
+variable "mlflow_user_name" {
+  type    = string
+}
+
+variable "mlflow_ip_address" {
+  type    = string
+}
+
+variable "for_mlflow_service_account_id" {
+  type    = string
+}
+
+variable "mlflow_buket_name" {
+  type    = string
+}
+
+variable "mlflow_access_key" {
+  type    = string
+}
+
+variable "mlflow_secret_key" {
+  type    = string
+}
+
+variable "pg_db_name" {
+  type    = string
+}
+
+variable "pg_user" {
+  type    = string
+}
+
+variable "pg_password" {
+  type    = string
+}
+
+variable "mlflow_backup_interval" {
+  type    = string
+}
+
+variable "mlflow_port" {
+  type = string
+}

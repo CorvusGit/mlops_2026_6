@@ -38,6 +38,9 @@ DP_SA_JSON = Variable.get("DP_SA_JSON")
 DP_SA_ID = Variable.get("DP_SA_ID")
 DP_SECURITY_GROUP_ID = Variable.get("DP_SECURITY_GROUP_ID")
 
+MLFLOW_IP = Variable.get("MLFLOW_IP")
+MLFLOW_PORT = Variable.get("MLFLOW_PORT")
+
 # Создание подключения для Object Storage
 YC_S3_CONNECTION = Connection(
     conn_id="yc-s3",
