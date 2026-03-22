@@ -33,7 +33,7 @@ S3_SRC_BUCKET = S3_BUCKET_NAME[:]                       # YC S3 bucket for pyspa
 S3_DP_LOGS_BUCKET = S3_BUCKET_NAME + "/airflow_logs/"   # YC S3 bucket for Data Proc logs
 
 # Переменные необходимые для создания Dataproc кластера
-DP_SA_AUTH_KEY_PUBLIC_KEY = Variable.get("DP_SA_AUTH_KEY_PUBLIC_KEY")
+DP_SA_AUTH_KEY_PUBLIC_KEY = "" #Variable.get("DP_SA_AUTH_KEY_PUBLIC_KEY")
 DP_SA_JSON = Variable.get("DP_SA_JSON")
 DP_SA_ID = Variable.get("DP_SA_ID")
 DP_SECURITY_GROUP_ID = Variable.get("DP_SECURITY_GROUP_ID")
