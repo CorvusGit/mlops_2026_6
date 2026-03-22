@@ -104,7 +104,7 @@ def run_setup_connections(**kwargs): # pylint: disable=unused-argument
 
 # Настройки DAG
 with DAG(
-    dag_id="proc_for_ml_pipeline",
+    dag_id="learning_model",
     start_date=datetime(year=2026, month=3, day=16),
     schedule_interval=timedelta(minutes=60),
     catchup=False
