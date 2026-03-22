@@ -4,10 +4,6 @@ datasource:
   Ec2:
     strict_id: false
 ssh_pwauth: no
-package_update: true
-packages:
-  - docker.io
-  - docker-compose-plugin
 users:
   - name: ubuntu
     sudo: 'ALL=(ALL) NOPASSWD:ALL'
@@ -53,6 +49,8 @@ write_files:
     defer: true
 
 runcmd:
+  - apt-get update
+  - apt-get install -y docker.io docker-compose
   - mkdir -p /opt/app/postgres_docker
   - mkdir -p /opt/app/mlflow_docker
 
@@ -60,5 +58,5 @@ runcmd:
   - systemctl start docker
 
   - cd /opt/app
-  - docker compose build
-  - docker compose up -d
+  - docker-compose build
+  - docker-compose up -d

@@ -5,11 +5,12 @@ terraform {
       source = "yandex-cloud/yandex"
     }
   }
-  required_version = ">= 0.13"
+  required_version = ">= 1.00"
 }
 
 provider "yandex" {
-  zone      = var.yc_zone
-  folder_id = var.yc_folder_id
-  token     = var.yc_token
+  zone      = var.provider_config.zone
+  folder_id = var.provider_config.folder_id
+  token     = var.provider_config.token
+  cloud_id  = var.provider_config.cloud_id
 }

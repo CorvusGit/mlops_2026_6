@@ -35,9 +35,9 @@ variable "public_key_path" {
   type = string
 }
 
-variable "private_key_path" {
-  type = string
-}
+# variable "private_key_path" {
+#   type = string
+# }
 
 variable "admin_password" {
   type = string
@@ -116,4 +116,5 @@ variable "mlflow_backup_interval" {
 
 variable "mlflow_port" {
   type = string
+  default = "5005"
 }

@@ -1,23 +1,27 @@
 
+data "yandex_compute_image" "ubuntu" {
+  family = "ubuntu-2204-lts"
+}
+
 # vm для развертывания docker, а в нём ml_flow, postgres и образа для бэкапов
 resource "yandex_compute_disk" "boot_disk" {
   name     = "boot-disk"
   zone     = var.provider_config.zone
-  image_id = var.image_id
+  image_id = data.yandex_compute_image.ubuntu.id
   size     = 30
 }
 
 locals {
   docker_compose  = file("${path.module}/docker/docker-compose.yml")
-  mlflow_docker  = file("${path.module}/docker/mlflow_docker/DockerFile")
-  postgres_docker  = file("${path.module}/docker/postgres_docker/DockerFile")
+  mlflow_docker  = file("${path.module}/docker/mlflow_docker/Dockerfile")
+  postgres_docker  = file("${path.module}/docker/postgres_docker/Dockerfile")
 }
 
 resource "yandex_compute_instance" "mlflow" {
   name                      = var.instance_name
   allow_stopping_for_update = true
   platform_id               = "standard-v3"
-  zone                      = var.provider.zone
+  zone                      = var.provider_config.zone
   service_account_id        = var.service_account_id
 
   metadata = {
@@ -32,7 +36,7 @@ resource "yandex_compute_instance" "mlflow" {
       
       access_key = var.access_key
       secret_key = var.secret_key
-      s3_bucket = var.bucket_name
+      bucket_name = var.bucket_name
 
       pg_user = var.pg_user
       pg_password = var.pg_password
