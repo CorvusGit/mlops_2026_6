@@ -39,7 +39,7 @@ DP_SA_ID = Variable.get("DP_SA_ID")
 DP_SECURITY_GROUP_ID = Variable.get("DP_SECURITY_GROUP_ID")
 
 # ограничения данных (для тестов)
-LEARNING_SAMPLE_FRAQ = 0.1 #Variable.get("LEARNING_SAMPLE_FRAQ")
+LEARNING_SAMPLE_FRAQ = 0 #Variable.get("LEARNING_SAMPLE_FRAQ")
 
 # Создание подключения для Object Storage
 YC_S3_CONNECTION = Connection(
