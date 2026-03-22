@@ -39,7 +39,7 @@ DP_SA_ID = Variable.get("DP_SA_ID")
 DP_SECURITY_GROUP_ID = Variable.get("DP_SECURITY_GROUP_ID")
 
 # ограничения данных (для тестов)
-LEARNING_SAMPLE_FRAQ = 0 #Variable.get("LEARNING_SAMPLE_FRAQ")
+LEARNING_SAMPLE_FRAQ = Variable.get("LEARNING_SAMPLE_FRAQ")
 
 # Создание подключения для Object Storage
 YC_S3_CONNECTION = Connection(
@@ -119,7 +119,7 @@ with DAG(
     create_spark_cluster = DataprocCreateClusterOperator(
         task_id="dp-cluster-create-task",
         folder_id=YC_FOLDER_ID,
-        cluster_name=f"tmp-dp-{uuid.uuid4()}",
+        cluster_name=f"tmp-learn-dp-{uuid.uuid4()}",
         cluster_description="YC Spark Cluster",
         subnet_id=YC_SUBNET_ID,
         s3_bucket=S3_DP_LOGS_BUCKET,
@@ -129,12 +129,12 @@ with DAG(
         cluster_image_version="2.0",
 
         # masternode
-        masternode_resource_preset="s3-c4-m16",
+        masternode_resource_preset="s3-c2-m8",
         masternode_disk_type="network-ssd",
         masternode_disk_size=20,
 
         # datanodes
-        datanode_resource_preset="s3-c8-m32",
+        datanode_resource_preset="s3-c4-m16",
         datanode_disk_type="network-ssd",
         datanode_disk_size=50,
         datanode_count=2,

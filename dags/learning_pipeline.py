@@ -33,7 +33,7 @@ S3_SRC_BUCKET = S3_BUCKET_NAME[:]                       # YC S3 bucket for pyspa
 S3_DP_LOGS_BUCKET = S3_BUCKET_NAME + "/airflow_logs/"   # YC S3 bucket for Data Proc logs
 
 # Переменные необходимые для создания Dataproc кластера
-DP_SA_AUTH_KEY_PUBLIC_KEY = "" #Variable.get("DP_SA_AUTH_KEY_PUBLIC_KEY")
+DP_SA_AUTH_KEY_PUBLIC_KEY = Variable.get("DP_SA_AUTH_KEY_PUBLIC_KEY")
 DP_SA_JSON = Variable.get("DP_SA_JSON")
 DP_SA_ID = Variable.get("DP_SA_ID")
 DP_SECURITY_GROUP_ID = Variable.get("DP_SECURITY_GROUP_ID")
@@ -119,7 +119,7 @@ with DAG(
     create_spark_cluster = DataprocCreateClusterOperator(
         task_id="dp-cluster-create-task",
         folder_id=YC_FOLDER_ID,
-        cluster_name=f"tmp-dp-{uuid.uuid4()}",
+        cluster_name=f"tmp-proc-dp-{uuid.uuid4()}",
         cluster_description="YC Spark Cluster",
         subnet_id=YC_SUBNET_ID,
         s3_bucket=S3_DP_LOGS_BUCKET,
@@ -129,12 +129,12 @@ with DAG(
         cluster_image_version="2.0",
 
         # masternode
-        masternode_resource_preset="s3-c4-m16",
+        masternode_resource_preset="s3-c2-m8",
         masternode_disk_type="network-ssd",
         masternode_disk_size=20,
 
         # datanodes
-        datanode_resource_preset="s3-c8-m32",
+        datanode_resource_preset="s3-c4-m16",
         datanode_disk_type="network-ssd",
         datanode_disk_size=50,
         datanode_count=2,

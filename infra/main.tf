@@ -96,7 +96,9 @@ locals {
   var_names = [
     "YC_ZONE", "YC_FOLDER_ID", "YC_SUBNET_ID", "YC_SSH_PUBLIC_KEY",
     "S3_ENDPOINT_URL", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_BUCKET_NAME",
-    "DP_SECURITY_GROUP_ID", "DP_SA_ID", "DP_SA_JSON","MLFLOW_IP", "MLFLOW_PORT"
+    "DP_SECURITY_GROUP_ID", "DP_SA_AUTH_KEY_PUBLIC_KEY",
+    "DP_SA_ID", "DP_SA_JSON","MLFLOW_IP", "MLFLOW_PORT",
+    "LEARNING_SAMPLE_FRAQ"
   ]
 
   # Формируем мапу значений
@@ -114,6 +116,7 @@ locals {
     DP_SA_ID             = module.iam.service_account_id
     MLFLOW_IP            = var.mlflow_ip_address
     MLFLOW_PORT          = var.mlflow_port
+    LEARNING_SAMPLE_FRAQ = var.learning_sample_fraq
     DP_SA_JSON           = jsonencode({
       id                 = module.iam.auth_key_id
       service_account_id = module.iam.service_account_id

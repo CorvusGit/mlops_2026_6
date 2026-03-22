@@ -118,3 +118,9 @@ variable "mlflow_port" {
   type = string
   default = "5005"
 }
+
+variable "learning_sample_fraq" {
+  type = number
+  default = 0.1
+}
+
