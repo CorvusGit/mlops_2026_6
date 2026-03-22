@@ -53,6 +53,7 @@ YC_S3_CONNECTION = Connection(
     },
 )
 
+
 # Создание подключения для Dataproc
 YC_SA_CONNECTION = Connection(
     conn_id="yc-sa",

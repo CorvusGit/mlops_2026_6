@@ -91,7 +91,6 @@ def setup_airflow_connections(*connections: Connection) -> None:
     finally:
         session.close()
 
-
 # Функция для выполнения setup_airflow_connections в рамках оператора
 def run_setup_connections(**kwargs): # pylint: disable=unused-argument
     """Создает подключения внутри оператора"""

@@ -116,6 +116,7 @@ with DAG(
         python_callable=run_setup_connections,
     )
 
+
     # 1 этап: создание Dataproc клаcтера
     create_spark_cluster = DataprocCreateClusterOperator(
         task_id="dp-cluster-create-task",
