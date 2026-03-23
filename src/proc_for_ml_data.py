@@ -5,8 +5,8 @@ import logging
 import re
 from datetime import datetime
 
-import findspark
-findspark.init()
+#import findspark
+#findspark.init()
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
