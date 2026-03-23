@@ -148,7 +148,7 @@ with DAG(
         connection_id=YC_SA_CONNECTION.conn_id,
         
         initialization_actions=[
-            f"s3://{S3_BUCKET_NAME}/src/install_ml_libs.sh"
+            f"s3a://{S3_SRC_BUCKET}/src/install_ml_libs.sh"
             ],
         dag=dag,
     )
