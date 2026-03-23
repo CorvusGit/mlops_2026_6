@@ -467,9 +467,17 @@ def learning(
     mlflow.pyspark.ml.autolog(log_models=False)
 
     # Формируем имя запуска
-    runs = client.search_runs(experiment_ids=[experiment_id])
+    runs = client.search_runs(experiment_ids=[experiment_id],order_by=["metrics.test_f1_score DESC"])
     run_number = len(runs) + 1  # Номер текущего запуска
     current_run_name = f"Fraud_Detection_v_{run_number}"
+
+    #для сравнения после обучения новой модели
+    f1_best_run = 0
+    if len(runs) > 0:
+        best_run = runs[0]
+        if 'test_f1_score' in  best_run.data.metrics:
+            f1_best_run = best_run.data.metrics['test_f1_score']
+
 
     with mlflow.start_run(
         experiment_id=experiment_id,
@@ -529,6 +537,8 @@ def learning(
 
         if LOG:
             logger.info(f"Run finished. ID: {run.info.run_id}")
+            if f1 > f1_best_run:
+                logger.info(f"This is best run !")
 
     spark.stop()
 

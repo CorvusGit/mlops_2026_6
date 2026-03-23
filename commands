@@ -1,3 +1,7 @@
 yc storage s3 cp s3://otus-bucket2-b1gukkncvsp3tvci7gp3/2019-08-22.txt s3://airflow-bucket-47d12aba47a0f468/input_data/2019-08-22.txt
 
 cat /var/log/cloud-init-output.log
+
+yc storage s3 cp s3://otus-bucket2-b1gukkncvsp3tvci7gp3/2019-08-22.txt s3://airflow-bucket-38c47522188b250c/input_data/2019-08-22.txt
+yc storage s3 cp s3://otus-bucket2-b1gukkncvsp3tvci7gp3/2019-08-22.txt s3://airflow-bucket-38c47522188b250c/input_data/2019-09-21.txt
+yc storage s3 cp s3://otus-bucket2-b1gukkncvsp3tvci7gp3/2019-08-22.txt s3://airflow-bucket-38c47522188b250c/input_data/2019-10-21.txt
