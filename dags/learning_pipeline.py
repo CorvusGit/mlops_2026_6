@@ -13,7 +13,8 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.providers.yandex.operators.dataproc import (
     DataprocCreateClusterOperator,
     DataprocCreatePysparkJobOperator,
-    DataprocDeleteClusterOperator
+    DataprocDeleteClusterOperator,
+    InitializationAction
 )
 
 
@@ -149,7 +150,7 @@ with DAG(
         connection_id=YC_SA_CONNECTION.conn_id,
         
         initialization_actions=[
-            {"uri": f"s3a://{S3_SRC_BUCKET}/src/install_ml_libs.sh"}
+            InitializationAction(uri=f"s3a://{S3_SRC_BUCKET}/src/install_ml_libs.sh")
         ],
         dag=dag,
     )
