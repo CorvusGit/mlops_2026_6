@@ -146,6 +146,10 @@ with DAG(
         # software
         services=["YARN", "SPARK", "HDFS", "MAPREDUCE"],
         connection_id=YC_SA_CONNECTION.conn_id,
+        
+        initialization_actions=[
+            f"s3://{S3_BUCKET_NAME}/src/install_ml_libs.sh"
+            ],
         dag=dag,
     )
     # 2 этап: запуск задания PySpark

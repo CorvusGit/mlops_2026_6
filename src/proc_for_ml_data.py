@@ -18,7 +18,6 @@ from pyspark.sql import Window
 from pyspark.storagelevel import StorageLevel
 
 
-
 def parse_arguments() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(
