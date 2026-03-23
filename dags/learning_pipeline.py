@@ -149,7 +149,7 @@ with DAG(
         connection_id=YC_SA_CONNECTION.conn_id,
         
         initialization_actions=[
-            {"uri": "s3://airflow-bucket/scripts/install_ml_libs.sh"}
+            {"uri": f"s3a://{S3_SRC_BUCKET}/src/install_ml_libs.sh"}
         ],
         dag=dag,
     )
