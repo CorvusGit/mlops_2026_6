@@ -155,7 +155,7 @@ with DAG(
     # 2 этап: запуск задания PySpark
     poke_spark_processing = DataprocCreatePysparkJobOperator(
         task_id="dp-cluster-pyspark-task",
-        main_python_file_uri=f"s3a://{S3_SRC_BUCKET}/src/proc_for_ml_pipeline.py",
+        main_python_file_uri=f"s3a://{S3_SRC_BUCKET}/src/learning.py",
         connection_id=YC_SA_CONNECTION.conn_id,
         args=["--in-path", f"s3a://{S3_BUCKET_NAME}/output_data_for_ml/",
             "--mlflow-conn", f"http://{MLFLOW_IP}:{MLFLOW_PORT}",
