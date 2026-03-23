@@ -155,7 +155,6 @@ with DAG(
         connection_id=YC_SA_CONNECTION.conn_id,
         args=["--in-path", f"s3a://{S3_BUCKET_NAME}/output_data/",
             "--out-path", f"s3a://{S3_BUCKET_NAME}/output_data_for_ml/",
-            #"--sample_fraq", LEARNING_SAMPLE_FRAQ,
             "--log-stats"],
         dag=dag,
     )

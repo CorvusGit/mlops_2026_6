@@ -39,14 +39,6 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        '--sample-fraq',
-        type=float,
-        required=False,
-        default=0,
-        help='подключение к мастер ноде'
-    )
-
-    parser.add_argument(
         '--master-conn',
         type=str,
         required=False,
@@ -410,7 +402,6 @@ def get_count_risk_rolling_window_spark(df,full_colls, delay_cols, del_in_cols =
 def prepair_data(
         in_path: str,
         out_path: str,
-        sample_fraq: float,
         master_conn: str = "", #IP:PORT
         log_stats: bool = False,
         local: bool = False):
@@ -420,7 +411,6 @@ def prepair_data(
     # =====================================================
     INPUT_PATH = in_path
     OUTPUT_PATH = out_path
-    SAMPLE_FRAQ = sample_fraq
     MASTER_CONN = master_conn
     LOG = log_stats
     LOCAL_RUN = local
@@ -522,8 +512,8 @@ def prepair_data(
         .parquet(INPUT_PATH)
         #.persist(StorageLevel.MEMORY_AND_DISK)
     )
-    if SAMPLE_FRAQ > 0 and SAMPLE_FRAQ <=1:
-        df=df.sample(fraction=SAMPLE_FRAQ, seed=42)
+    #if SAMPLE_FRAQ > 0 and SAMPLE_FRAQ <=1:
+    #    df=df.sample(fraction=SAMPLE_FRAQ, seed=42)
 
     # =====================================================
     # Генерация признаков
