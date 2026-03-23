@@ -29,7 +29,7 @@ S3_SECRET_KEY = Variable.get("S3_SECRET_KEY")
 S3_BUCKET_NAME = Variable.get("S3_BUCKET_NAME")
 #S3_INPUT_BUCKET_NAME = Variable.get("S3_INPUT_BUCKET_NAME")
 S3_INPUT_DATA_BUCKET = S3_BUCKET_NAME + "/airflow/"     # YC S3 bucket for input data
-S3_SRC_BUCKET = Variable.get("S3_SRC_BUCKET")                      # YC S3 bucket for pyspark source files
+S3_SRC_BUCKET = S3_BUCKET_NAME[:]                       # YC S3 bucket for pyspark source files
 S3_DP_LOGS_BUCKET = S3_BUCKET_NAME + "/airflow_logs/"   # YC S3 bucket for Data Proc logs
 
 # Переменные необходимые для создания Dataproc кластера
@@ -151,7 +151,7 @@ with DAG(
     # 2 этап: запуск задания PySpark
     poke_spark_processing = DataprocCreatePysparkJobOperator(
         task_id="dp-cluster-pyspark-task",
-        main_python_file_uri=f"s3a://{S3_SRC_BUCKET}/src/proc_for_ml_pipeline.py",
+        main_python_file_uri=f"s3a://{S3_SRC_BUCKET}/src/proc_for_ml_data.py",
         connection_id=YC_SA_CONNECTION.conn_id,
         args=["--in-path", f"s3a://{S3_BUCKET_NAME}/output_data/",
             "--out-path", f"s3a://{S3_BUCKET_NAME}/output_data_for_ml/",
