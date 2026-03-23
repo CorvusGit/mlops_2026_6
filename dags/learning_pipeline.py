@@ -150,7 +150,10 @@ with DAG(
         connection_id=YC_SA_CONNECTION.conn_id,
         
         initialization_actions=[
-            InitializationAction(uri=f"s3a://{S3_SRC_BUCKET}/src/install_ml_libs.sh")
+            InitializationAction(
+                uri=f"s3a://{S3_SRC_BUCKET}/src/install_ml_libs.sh",
+                args=[],         # Список аргументов командной строки для скрипта
+                timeout=600      # Тайм-аут выполнения в секундах (например, 10 минут))
         ],
         dag=dag,
     )
