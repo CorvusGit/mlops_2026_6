@@ -15,7 +15,7 @@ from airflow.providers.yandex.operators.dataproc import (
     DataprocCreatePysparkJobOperator,
     DataprocDeleteClusterOperator
 )
-#from airflow.providers.yandex.hooks.dataproc import DataprocInitAction
+
 
 # Общие переменные для вашего облака
 YC_ZONE = Variable.get("YC_ZONE")
@@ -150,7 +150,7 @@ with DAG(
         
         initialization_actions=[
             {"uri": "s3://airflow-bucket/scripts/install_ml_libs.sh"}
-        ]
+        ],
         dag=dag,
     )
     # 2 этап: запуск задания PySpark
