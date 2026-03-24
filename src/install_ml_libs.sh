@@ -1,5 +1,5 @@
-#!/bin/bash
-# Обновляем pip и устанавливаем нужные библиотеки в среду Spark
+# Остановить выполнение при любой ошибке
 set -e
-sudo /opt/conda/bin/pip install --upgrade pip
-sudo /opt/conda/bin/pip install mlflow scikit-learn pandas matplotlib seaborn
+# Используем pip3, так как в Dataproc по умолчанию Python 3
+sudo /usr/bin/pip3 install matplotlib pandas mlflow seaborn
+echo "Библиотеки успешно установлены."
