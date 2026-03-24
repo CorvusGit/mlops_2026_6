@@ -25,9 +25,11 @@ import mlflow
 from mlflow.tracking import MlflowClient
 from mlflow.models import infer_signature
 import json
-#import pandas as pd
-import seaborn as sns
+
+import matplotlib
+matplotlib.use('Agg') # Переключает matplotlib в режим записи в файл, без GUI
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="mlflow")
