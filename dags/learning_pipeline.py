@@ -137,10 +137,10 @@ with DAG(
         masternode_disk_size=20,
 
         # datanodes
-        datanode_resource_preset="s3-c4-m16",
+        datanode_resource_preset="s3-c8-m32",
         datanode_disk_type="network-ssd",
         datanode_disk_size=50,
-        datanode_count=3,
+        datanode_count=2,
 
         # computenodes
         computenode_count=0,
