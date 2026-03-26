@@ -465,24 +465,23 @@ def prepair_data(
                 #.config("spark.pyspark.driver.python", "/usr/bin/python3")
                 
                 # Драйвер
-                .config("spark.driver.memory", "12g")
-                .config("spark.driver.maxResultSize", "8g") 
+                .config("spark.driver.memory", "10g")
+                .config("spark.driver.maxResultSize", "2g") 
 
                 # Исполнители
-                #.config("spark.executor.instances", "6") 
                 .config("spark.executor.cores", "4")
                 .config("spark.executor.memory", "10g")
-                .config("spark.executor.memoryOverhead", "4g")
+                .config("spark.executor.memoryOverhead", "2g")
 
                 # параллелизм
-                .config("spark.sql.shuffle.partitions", "128")
-                .config("spark.default.parallelism", "128")
+                .config("spark.sql.shuffle.partitions", "96")
+                .config("spark.default.parallelism", "96")
 
                 # Адаптивность
                 .config("spark.sql.adaptive.enabled", "true")
                 .config("spark.sql.adaptive.coalescePartitions.enabled", "true") # Склеивать мелкие части
                 .config("spark.sql.adaptive.skewJoin.enabled", "true")           # Обработка перекосов данных
-                #.config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "128mb") # целевой размер раздела при склейке
+                .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "128mb") # целевой размер раздела при склейке
 
                 # сетевой таймаут
                 .config("spark.network.timeout", "600s")
