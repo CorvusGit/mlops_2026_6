@@ -469,7 +469,7 @@ def prepair_data(
                 .config("spark.driver.maxResultSize", "8g") 
 
                 # Исполнители
-                .config("spark.executor.instances", "4") 
+                #.config("spark.executor.instances", "6") 
                 .config("spark.executor.cores", "4")
                 .config("spark.executor.memory", "10g")
                 .config("spark.executor.memoryOverhead", "4g")
