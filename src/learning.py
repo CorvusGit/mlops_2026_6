@@ -343,6 +343,7 @@ def learning(
                 .config("spark.network.timeout", "600s")
                 .getOrCreate()
         )
+        
     spark.conf.set("spark.sql.ansi.enabled", "false")
 
     logger = logging.getLogger("ModelLearning")
