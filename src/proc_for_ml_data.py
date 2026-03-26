@@ -459,19 +459,36 @@ def prepair_data(
     else:
         spark = (
             SparkSession.builder
-                .appName("Spark ML Clean Data")
-                #.master(f"spark://{MASTER_CONN}")
-                #.config("spark.executor.instances", "3")
-                #.config("spark.executor.cores", "3")
-                #.config("spark.executor.memory", "10g")
-                #.config("spark.executor.memoryOverhead", "2g")
-                #.config("spark.driver.memory", "12g")
-                #.config("spark.driver.cores", "3")
-                #.config("spark.sql.shuffle.partitions", "72")
-                #.config("spark.sql.files.maxPartitionBytes", "256m")
+                .appName("Spark ML Prepair")
+                # Пути к Python (чтобы не было конфликтов версий)
+                #.config("spark.pyspark.python", "/usr/bin/python3")
+                #.config("spark.pyspark.driver.python", "/usr/bin/python3")
+                
+                # Драйвер
+                .config("spark.driver.memory", "20g")
+                .config("spark.driver.maxResultSize", "8g") 
+
+                # Исполнители
+                .config("spark.executor.instances", "4") 
+                .config("spark.executor.cores", "8")
+                .config("spark.executor.memory", "24g")
+                .config("spark.executor.memoryOverhead", "4g")
+
+                # параллелизм
+                .config("spark.sql.shuffle.partitions", "128")
+                .config("spark.default.parallelism", "128")
+
+                # Адаптивность
                 .config("spark.sql.adaptive.enabled", "true")
+                .config("spark.sql.adaptive.coalescePartitions.enabled", "true") # Склеивать мелкие части
+                .config("spark.sql.adaptive.skewJoin.enabled", "true")           # Обработка перекосов данных
+                #.config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "128mb") # целевой размер раздела при склейке
+
+                # сетевой таймаут
+                .config("spark.network.timeout", "600s")
                 .getOrCreate()
         )
+
 
     spark.conf.set("spark.sql.ansi.enabled", "false")
 
@@ -484,8 +501,8 @@ def prepair_data(
     #logger.addHandler(ch)
 
     #logger = spark.sparkContext._jvm.org.apache.log4j.LogManager.getLogger("DataQuality")
-    sc = spark.sparkContext
-    sc.setLogLevel("WARN")
+    #sc = spark.sparkContext
+    #sc.setLogLevel("WARN")
     #spark.sparkContext.setLogLevel("WARN")
 
     #вычисляем максимальное количество выходных файлов

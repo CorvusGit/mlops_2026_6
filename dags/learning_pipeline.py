@@ -140,7 +140,7 @@ with DAG(
         datanode_resource_preset="s3-c8-m32",
         datanode_disk_type="network-ssd",
         datanode_disk_size=50,
-        datanode_count=2,
+        datanode_count=4,
 
         # computenodes
         computenode_count=0,
