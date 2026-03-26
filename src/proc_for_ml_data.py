@@ -465,13 +465,13 @@ def prepair_data(
                 #.config("spark.pyspark.driver.python", "/usr/bin/python3")
                 
                 # Драйвер
-                .config("spark.driver.memory", "20g")
+                .config("spark.driver.memory", "12g")
                 .config("spark.driver.maxResultSize", "8g") 
 
                 # Исполнители
                 .config("spark.executor.instances", "4") 
-                .config("spark.executor.cores", "8")
-                .config("spark.executor.memory", "24g")
+                .config("spark.executor.cores", "4")
+                .config("spark.executor.memory", "10g")
                 .config("spark.executor.memoryOverhead", "4g")
 
                 # параллелизм
