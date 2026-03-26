@@ -315,36 +315,34 @@ def learning(
     else:
         spark = (
             SparkSession.builder
-                .appName("Spark ML Learning")
+                .appName("Spark ML Prepair")
                 # Пути к Python (чтобы не было конфликтов версий)
                 #.config("spark.pyspark.python", "/usr/bin/python3")
                 #.config("spark.pyspark.driver.python", "/usr/bin/python3")
                 
                 # Драйвер
-                .config("spark.driver.memory", "20g")
-                .config("spark.driver.maxResultSize", "8g") 
+                .config("spark.driver.memory", "10g")
+                .config("spark.driver.maxResultSize", "2g") 
 
                 # Исполнители
-                .config("spark.executor.instances", "4") 
-                .config("spark.executor.cores", "8")
-                .config("spark.executor.memory", "24g")
-                .config("spark.executor.memoryOverhead", "4g")
+                .config("spark.executor.cores", "4")
+                .config("spark.executor.memory", "10g")
+                .config("spark.executor.memoryOverhead", "2g")
 
                 # параллелизм
-                .config("spark.sql.shuffle.partitions", "128")
-                .config("spark.default.parallelism", "128")
+                .config("spark.sql.shuffle.partitions", "96")
+                .config("spark.default.parallelism", "96")
 
                 # Адаптивность
-                .config("spark.sql.adaptive.enabled", "true") # AQE
+                .config("spark.sql.adaptive.enabled", "true")
                 .config("spark.sql.adaptive.coalescePartitions.enabled", "true") # Склеивать мелкие части
                 .config("spark.sql.adaptive.skewJoin.enabled", "true")           # Обработка перекосов данных
-                #.config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "128mb") # целевой размер раздела при склейке
+                .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "128mb") # целевой размер раздела при склейке
 
                 # сетевой таймаут
                 .config("spark.network.timeout", "600s")
                 .getOrCreate()
         )
-
     spark.conf.set("spark.sql.ansi.enabled", "false")
 
     logger = logging.getLogger("ModelLearning")
