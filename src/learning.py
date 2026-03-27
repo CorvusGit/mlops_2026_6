@@ -288,16 +288,13 @@ def learning(
         spark = (
             SparkSession.builder
                 .appName("Spark ML Prepair Data")
-                # 1. Используем все ядра (16), но оставляем 1-2 для системы
                 .master("local[12]")
-                # 2. Память Драйвера (в локальном режиме это основная настройка)
-                # Выделяем 16-20 ГБ, чтобы спокойно делать .toPandas() и обучать модели
                 .config("spark.driver.memory", "18g")
-                # 3. Лимит на размер объектов, собираемых на драйвере (увеличиваем для тяжелых операций)
+                # Лимит на размер объектов, собираемых на драйвере (увеличиваем для тяжелых операций)
                 .config("spark.driver.maxResultSize", "8g")
-                # 4. Включаем современные оптимизации 2025 года (Adaptive Query Execution)
+                # Включаем оптимизации AQE
                 .config("spark.sql.adaptive.enabled", "true")
-                # 5. Оптимизация работы с памятью при передаче данных в Pandas
+                # Оптимизация работы с памятью при передаче данных в Pandas
                 .config("spark.sql.execution.arrow.pyspark.enabled", "false")
                 #.config("spark.sql.adaptive.skewJoin.enabled", "true")
                 #.config("spark.driver.extraJavaOptions", "--add-opens=java.base/java.nio=ALL-UNNAMED")
@@ -346,15 +343,8 @@ def learning(
     logger = logging.getLogger("ModelLearning")
     logger.setLevel(logging.WARN)
 
-    #ch = logging.StreamHandler()
-    #formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    #ch.setFormatter(formatter)
-    #logger.addHandler(ch)
-
-    #logger = spark.sparkContext._jvm.org.apache.log4j.LogManager.getLogger("DataQuality")
-    sc = spark.sparkContext
-    sc.setLogLevel("WARN")
-    #spark.sparkContext.setLogLevel("WARN")
+    #sc = spark.sparkContext
+    #sc.setLogLevel("WARN")
 
     #вычисляем максимальное количество выходных файлов
     n_out = get_coalesce_number(spark,logger,INPUT_PATH, target_size_mb=128,zip_coeff=1)
@@ -391,7 +381,7 @@ def learning(
         .withColumn("day_sin", F.sin(2 * PI * F.col("day_of_week") / 7)) \
         .withColumn("day_cos", F.cos(2 * PI * F.col("day_of_week") / 7))  
 
-    #считаем поля -отношения
+    # считаем поля -отношения
     rate_cols = ["term_tx_amount_avg_30d_hist","term_tx_amount_avg_7d_hist",
              "term_tx_amount_std_30d_hist","term_tx_amount_std_7d_hist",
              'tx_amount_avg_cust_30d_hist','tx_amount_std_cust_30d_hist',
@@ -485,7 +475,7 @@ def learning(
     run_number = len(runs) + 1  # Номер текущего запуска
     current_run_name = f"Fraud_Detection_v_{run_number}"
 
-    #для сравнения после обучения новой модели
+    # для сравнения после обучения новой модели
     f1_best_run = 0
     if len(runs) > 0:
         best_run = runs[0]
