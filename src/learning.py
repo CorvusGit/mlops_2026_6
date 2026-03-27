@@ -154,14 +154,12 @@ def add_ratio_features_simple(df, target_col, hist_agg_cols,drop_hist=False):
         ratio_col_name = f"ratio_{col_name}"
     
         # Используем coalesce, чтобы избежать деления на NULL или 0
-        # Если истории нет, рейт обычно принимается равным 1.0 (норма)
         df = df.withColumn(
             ratio_col_name, 
             F.col(target_col) / F.when(F.col(col_name) != 0, F.col(col_name)).otherwise(F.col(target_col))
         )
     
-    # Удаляем промежуточную колонку с агрегатом, чтобы не замусоривать датасет
-    if drop_hist:
+    # Удаляем промежуточную колонку с агрегатом
         df = df.drop(*hist_agg_cols)
         
     return df
@@ -170,8 +168,7 @@ def split_train_test_by_time(df, train_ratio=0.8, time_col='tx_datetime'):
     """
     Разделяет датасет на train/test по времени без перемешивания.
     """
-    # 1. Находим минимальное и максимальное время (в секундах для точности)
-    # Или используем tx_time_seconds, если он заполнен и корректен
+    # Находим минимальное и максимальное время (в секундах для точности)
     stats = df.select(
         F.min(time_col).alias('min_t'),
         F.max(time_col).alias('max_t')
@@ -180,11 +177,10 @@ def split_train_test_by_time(df, train_ratio=0.8, time_col='tx_datetime'):
     start_t = stats['min_t']
     end_t = stats['max_t']
     
-    # 2. Вычисляем точку отсечения (threshold) через перцентиль
-    # approxQuantile работает быстрее на больших объемах, чем точная сортировка
+    # Вычисляем точку отсечения (threshold) через перцентиль
     threshold = df.stat.approxQuantile(time_col, [train_ratio], 0.01)[0]
     
-    # 3. Разделяем данные
+    # Разделяем данные
     train_df = df.filter(F.col(time_col) <= threshold)
     test_df = df.filter(F.col(time_col) > threshold)
     
@@ -199,7 +195,7 @@ def get_waighted_data(df,eval_col="tx_fraud"):
     ratio = round(dict_counts[False] / dict_counts[True])
     #print(ratio)
     # Создаем колонку с весами: 
-    # Если фрод — вес равен ratio, если нет — вес равен 1.0
+    # Если фрод — вес равен ratio, если нет — вес равен 1
     train_weighted = df.withColumn("weight", F.when(F.col(eval_col) == True, ratio).otherwise(1.0))
     return train_weighted
 
@@ -225,7 +221,7 @@ def get_metrics_and_log(predictions,prefix=''):
     total_weeks = (result_fp["last_tx"].timestamp() - result_fp["first_tx"].timestamp()) / 604800
     avg_fp_per_week = result_fp["total_fp"] / total_weeks if total_weeks > 0 else 0
 
-    # 3. Логируем метрики в MLflow
+    # Логируем метрики в MLflow
     mlflow.log_metrics({
         f"{prefix}precision": precision,
         f"{prefix}recall": recall,
@@ -237,6 +233,7 @@ def get_metrics_and_log(predictions,prefix=''):
     return precision, recall, f1, avg_fp_per_week
 
 def get_confusion_matrix(predictions):
+    
     #Логируем Confusion Matrix как рисунок
     conf_matrix = predictions.groupBy("tx_fraud", "prediction").count().toPandas()
     matrix_df = conf_matrix.pivot(index='tx_fraud', columns='prediction', values='count').fillna(0)
