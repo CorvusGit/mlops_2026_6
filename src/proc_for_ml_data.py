@@ -163,8 +163,6 @@ def add_aggregated_features(df, target_col, windows, agg_types=["count", "avg"],
             df = df.withColumn(sum_col, F.sum(target_col).over(win_spec))
             
             if "avg" in agg_types:
-                # В Spark avg через Window может быть медленнее, чем sum/count,
-                # но при наличии count это просто деление
                 df = df.withColumn(f"{prefix}{target_col}_avg_{win_name}", F.col(sum_col) / F.col(count_col))
             
             if "sum" not in agg_types:
@@ -201,13 +199,13 @@ def add_ratio_features(df, target_col, windows, agg_types="avg"):
         ratio_col_name = f"ratio_{col_name.replace(prefix,'')}"
     
         # Используем coalesce, чтобы избежать деления на NULL или 0
-        # Если истории нет, рейт обычно принимается равным 1.0 (норма)
+        # Если истории нет, принимается равным 1
         df = df.withColumn(
             ratio_col_name, 
             F.col(target_col) / F.when(F.col(col_name) != 0, F.col(col_name)).otherwise(F.col(target_col))
         )
     
-    # Удаляем промежуточную колонку с агрегатом, чтобы не замусоривать датасет
+    # Удаляем промежуточную колонку
     df = df.drop(*hist_agg_cols)
         
     return df
@@ -223,14 +221,12 @@ def add_ratio_features_simple(df, target_col, hist_agg_cols,drop_hist=False):
     for col_name in hist_agg_cols:
         ratio_col_name = f"ratio_{col_name}"
     
-        # Используем coalesce, чтобы избежать деления на NULL или 0
-        # Если истории нет, рейт обычно принимается равным 1.0 (норма)
         df = df.withColumn(
             ratio_col_name, 
             F.col(target_col) / F.when(F.col(col_name) != 0, F.col(col_name)).otherwise(F.col(target_col))
         )
     
-    # Удаляем промежуточную колонку с агрегатом, чтобы не замусоривать датасет
+    # Удаляем промежуточную колонку с агрегатом
     if drop_hist:
         df = df.drop(*hist_agg_cols)
         
@@ -255,12 +251,7 @@ def add_aggregated_features_for_heavy(df, partition_cols, time_col, target_col,
     need_avg = "avg" in agg_types
     need_std = "std" in agg_types
 
-    # 1. СТАДИЯ "СЖАТИЯ" (Stage 1: Bucket Aggregation)
     # Создаем временные бакеты
-    #df_with_buckets = df.withColumn(
-    #"_bucket", 
-    #F.window(F.col(time_col), bucket_interval)["start"].cast("long")
-    #)
     df_with_buckets = df.withColumn(
         "_bucket", 
         (F.col(time_col) / bucket_interval).cast("long") * bucket_interval
@@ -283,11 +274,7 @@ def add_aggregated_features_for_heavy(df, partition_cols, time_col, target_col,
         *agg_ops
     )
     
-    # 2. СТАДИЯ "ИСТОРИИ" (Stage 2: Sliding Windows on Buckets)
-    # Рассчитываем агрегаты только по ПРОШЛЫМ бакетам (не включая текущий)
-
-    # 2. СТАДИЯ "ИСТОРИИ"
-    # ВАЖНО: Пересоздаем окна специально для df_buckets по колонке _bucket
+    # Рассчитываем агрегаты только по прошлым бакетам (не включая текущий)
     for win_name, (start, end) in windows_definitions.items():
         # Создаем новое окно для агрегации бакетов
         win_spec = Window.partitionBy(*partition_cols).orderBy("_bucket").rangeBetween(start, end)
@@ -302,11 +289,11 @@ def add_aggregated_features_for_heavy(df, partition_cols, time_col, target_col,
             sum_sq_col = f"{prefix}_{target_col}_sum_sq_{win_name}"
             df_buckets = df_buckets.withColumn(sum_sq_col+"_hist", F.sum("_b_sum_sq").over(win_spec))
 
-    # 3. Соединение и инкремент (Stage 3)
+    # добавляем к текущему датасету
     df_final = df_with_buckets.join(df_buckets.drop("_b_sum", "_b_cnt", "_b_sum_sq"), 
                                     on=[*partition_cols, "_bucket"], how="left")
     
-
+    # расчитываем в текущем бакете
     if include_current:
         win_local = Window.partitionBy(*partition_cols, "_bucket").orderBy(time_col) \
                           .rangeBetween(Window.unboundedPreceding, end_of_current)
@@ -323,7 +310,7 @@ def add_aggregated_features_for_heavy(df, partition_cols, time_col, target_col,
 
     
     
-     # 4. ФИНАЛЬНЫЙ РАСЧЕТ И ОБРАБОТКА NULL (Stage 4: Fusion & Cleaning)
+    # объединение исторических и текущих
     drop_list = ["_bucket"]
     for win_name in windows_definitions.keys():
         # Берем историю из Join (если ее нет — 0)
@@ -353,7 +340,6 @@ def add_aggregated_features_for_heavy(df, partition_cols, time_col, target_col,
             drop_list.append(sum_sq_col+"_hist")
 
    
-        # Базовые агрегаты
         if need_count:
             df_final = df_final.withColumn(count_col, total_cnt)
         if need_sum:
@@ -435,16 +421,13 @@ def prepair_data(
         spark = (
             SparkSession.builder
                 .appName("Spark ML Prepair Data")
-                # 1. Используем все ядра (16), но оставляем 1-2 для системы
                 .master("local[14]")
-                # 2. Память Драйвера (в локальном режиме это основная настройка)
-                # Выделяем 16-20 ГБ, чтобы спокойно делать .toPandas() и обучать модели
                 .config("spark.driver.memory", "18g")
-                # 3. Лимит на размер объектов, собираемых на драйвере (увеличиваем для тяжелых операций)
+                # Лимит на размер объектов, собираемых на драйвере (увеличиваем для тяжелых операций)
                 .config("spark.driver.maxResultSize", "8g")
-                # 4. Включаем современные оптимизации 2025 года (Adaptive Query Execution)
+                # Включаем оптимизации AQE
                 .config("spark.sql.adaptive.enabled", "true")
-                # 5. Оптимизация работы с памятью при передаче данных в Pandas
+                # Оптимизация работы с памятью при передаче данных в Pandas
                 .config("spark.sql.execution.arrow.pyspark.enabled", "false")
                 #.config("spark.sql.adaptive.skewJoin.enabled", "true")
                 #.config("spark.driver.extraJavaOptions", "--add-opens=java.base/java.nio=ALL-UNNAMED")
@@ -460,9 +443,6 @@ def prepair_data(
         spark = (
             SparkSession.builder
                 .appName("Spark ML Prepair")
-                # Пути к Python (чтобы не было конфликтов версий)
-                #.config("spark.pyspark.python", "/usr/bin/python3")
-                #.config("spark.pyspark.driver.python", "/usr/bin/python3")
                 
                 # Драйвер
                 .config("spark.driver.memory", "10g")
@@ -494,15 +474,6 @@ def prepair_data(
     logger = logging.getLogger("PrepairData")
     logger.setLevel(logging.WARN)
 
-    #ch = logging.StreamHandler()
-    #formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    #ch.setFormatter(formatter)
-    #logger.addHandler(ch)
-
-    #logger = spark.sparkContext._jvm.org.apache.log4j.LogManager.getLogger("DataQuality")
-    #sc = spark.sparkContext
-    #sc.setLogLevel("WARN")
-    #spark.sparkContext.setLogLevel("WARN")
 
     #вычисляем максимальное количество выходных файлов
     n_out = get_coalesce_number(spark,logger,INPUT_PATH, target_size_mb=128,zip_coeff=.2)
@@ -557,7 +528,7 @@ def prepair_data(
         logger.info(f'keep: {datetime.fromtimestamp(start_training_date)} --> {datetime.fromtimestamp(max_date)}')
 
 
-    #определяем основные окна
+    # определяем основные окна
 
     TIME_COL = "unix_time"
 
@@ -578,7 +549,7 @@ def prepair_data(
                 "1d_hist": (-DAY-HOUR, -HOUR),
             }
 
-    #инициализируем окна по клиенту
+    # инициализируем окна по клиенту
     win_ct = create_windows(["customer_id","terminal_id"], TIME_COL, ct_win_defs, 
                             prefix_name = 'ct')
 
@@ -598,14 +569,14 @@ def prepair_data(
     features_df = add_aggregated_features(features_df,'tx_amount', 
                                         win_ct, agg_types=["isnew"])
 
-    #статистики по клиенту с текущими значениями
+    # статистики по клиенту с текущими значениями
     features_df = add_aggregated_features(features_df,'tx_amount', win_cust_current, agg_types=["count", "avg"])
 
-    #статистики по клиенту с историческими значениями
+    # статистики по клиенту с историческими значениями
     features_df = add_aggregated_features(features_df,'tx_amount', win_cust_hist, agg_types=["avg","std",'count'])
 
 
-    #статистики по терминалу текущие 
+    # статистики по терминалу текущие 
     # (терминал обрабатывается другими функциями, использующими подсчёт по батчам + текущие статистики внутри батча)
     features_df = add_aggregated_features_for_heavy(features_df, ['terminal_id'], TIME_COL, 'tx_amount', 
                                         win_defs_current, 
@@ -615,8 +586,8 @@ def prepair_data(
                                         end_of_current=0,
                                         prefix='term')
 
-    #статистики по терминалу исторические
-    #features_df = add_aggregated_features(features_df,'tx_amount', win_term_current, agg_types=["count", "avg","std"])
+    # статистики по терминалу исторические
+    # features_df = add_aggregated_features(features_df,'tx_amount', win_term_current, agg_types=["count", "avg","std"])
 
     features_df = add_aggregated_features_for_heavy(features_df, ['terminal_id'], TIME_COL, 'tx_amount', 
                                         win_defs_hist, 
@@ -627,7 +598,7 @@ def prepair_data(
                                         prefix='term')
 
 
-    #подсчёт новых клиентов на терминале за 30 дней
+    # подсчёт новых клиентов на терминале за 30 дней
     features_df = add_aggregated_features_for_heavy(features_df, ['terminal_id'], TIME_COL, 'tx_amount_isnew_ct_30d_hist', 
                                         win_defs_current,
                                         bucket_interval=bucket_interval, 
@@ -636,7 +607,7 @@ def prepair_data(
                                         end_of_current=0,
                                         prefix='term')
 
-    #подсчёт новых клиентов на терминале за 7 дней
+    # подсчёт новых клиентов на терминале за 7 дней
     features_df = add_aggregated_features_for_heavy(features_df, ['terminal_id'], TIME_COL, 'tx_amount_isnew_ct_7d_hist', 
                                         win_defs_current,
                                         bucket_interval=bucket_interval, 
@@ -645,7 +616,7 @@ def prepair_data(
                                         end_of_current=0,
                                         prefix='term')
 
-    #подсчёт риска терминала
+    # подсчёт риска терминала
     win_delay_fraud  = {
                 "7d_delay": (-WEEK, 0)
             }
@@ -655,7 +626,7 @@ def prepair_data(
                 "7d_full": (-WEEK-WEEK, 0)
             }
 
-    #получаем базовое окно задержки для вычитания
+    # получаем базовое окно задержки для вычитания
     features_df = add_aggregated_features_for_heavy(features_df, ['terminal_id'], TIME_COL, 'tx_fraud', 
                                         win_delay_fraud,
                                         bucket_interval=bucket_interval, 
@@ -664,7 +635,7 @@ def prepair_data(
                                         end_of_current=0,
                                         prefix='fraud')
 
-    #считаем полные окна с задержкой 
+    # считаем полные окна с задержкой 
     features_df = add_aggregated_features_for_heavy(features_df, ['terminal_id'], TIME_COL, 'tx_fraud', 
                                         win_fraud,
                                         bucket_interval=3600, 
