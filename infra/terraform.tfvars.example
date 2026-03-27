@@ -14,3 +14,22 @@ yc_storage_endpoint_url = "https://storage.yandexcloud.net"
 admin_password          = "Большая буква маленькие буквы цифры и знак -"
 public_key_path         = ""
 private_key_path        = ""
+airflow_db_conn_default = ""
+
+#MLFLOW
+
+mlflow_instance_name         = "otus-proxy-vm"
+mlfloe_image_id              = "fd808e721rc1vt7jkd0o" # Ubuntu 20.04 LTS
+mlflow_public_key_path          = "~/.ssh/hw2_mlops2.pub"
+mlflow_ip_address = "10.0.0.100"
+mlflow_user_name = "ubuntu"
+
+for_mlflow_service_account_id = ""
+mlflow_buket_name = ""
+mlflow_access_key = ""
+mlflow_secret_key = ""
+
+pg_db_name = ""
+pg_user = ""
+pg_password = ""
+mlflow_backup_interval = 300
