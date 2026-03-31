@@ -102,7 +102,7 @@ def run_setup_connections(**kwargs): # pylint: disable=unused-argument
 with DAG(
     dag_id="data_pipeline",
     start_date=datetime(year=2026, month=1, day=25),
-    schedule_interval=timedelta(minutes=60),
+    schedule_interval=timedelta(minutes=60*24),
     catchup=False,
     max_active_runs=1
 ) as dag:

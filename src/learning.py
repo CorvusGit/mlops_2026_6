@@ -34,6 +34,11 @@ import seaborn as sns
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="mlflow")
 
+from synapse.ml.lightgbm import LightGBMClassifier
+#from yv add import XGBoostClassifier
+
+#import os
+#os.environ["OMP_NUM_THREADS"] = "1"
 
 def parse_arguments() -> argparse.Namespace:
 
@@ -159,8 +164,8 @@ def add_ratio_features_simple(df, target_col, hist_agg_cols,drop_hist=False):
             F.col(target_col) / F.when(F.col(col_name) != 0, F.col(col_name)).otherwise(F.col(target_col))
         )
     
-    # Удаляем промежуточную колонку с агрегатом
-        df = df.drop(*hist_agg_cols)
+    # Удаляем промежуточнык колонки с агрегатом
+    df = df.drop(*hist_agg_cols)
         
     return df
     
@@ -286,21 +291,31 @@ def learning(
     if LOCAL_RUN:
         print("LOCAL RUN !!!")
         spark = (
-            SparkSession.builder
-                .appName("Spark ML Prepair Data")
-                .master("local[12]")
-                .config("spark.driver.memory", "18g")
-                # Лимит на размер объектов, собираемых на драйвере (увеличиваем для тяжелых операций)
-                .config("spark.driver.maxResultSize", "8g")
-                # Включаем оптимизации AQE
+                       SparkSession.builder
+                .appName("Spark ML Learning")
+                .master("local[14]")
+                .config("spark.driver.memory", "24g")
+                .config("spark.driver.maxResultSize", "4g")
+                .config("spark.memory.fraction", "0.6") # 60% памяти под вычисления
+                .config("spark.memory.storageFraction", "0.5")
+                #.config("spark.memory.offHeap.enabled", "true")
+                #.config("spark.memory.offHeap.size", "10g") # Явно выделяем место под нативную память
+                #.config("spark.executor.memory", "16g")
+                #.config("spark.default.parallelism", "6")
+                #.config("spark.sql.shuffle.partitions", "16")
+                #.config("spark.driver.maxResultSize", "4g")
+                .config("spark.local.dir", "/media/rk/2TB/spark_tmp")
+                # Адаптивность
                 .config("spark.sql.adaptive.enabled", "true")
-                # Оптимизация работы с памятью при передаче данных в Pandas
-                .config("spark.sql.execution.arrow.pyspark.enabled", "false")
-                #.config("spark.sql.adaptive.skewJoin.enabled", "true")
-                #.config("spark.driver.extraJavaOptions", "--add-opens=java.base/java.nio=ALL-UNNAMED")
-                #.config("spark.executor.extraJavaOptions", "--add-opens=java.base/java.nio=ALL-UNNAMED")
-                #.config("spark.jars.packages", "com.microsoft.azure:synapseml_2.12:0.11.1") \
-                #.config("spark.jars.repositories", "https://mmlspark.azureedge.net") \
+                .config("spark.sql.adaptive.coalescePartitions.enabled", "true") # Склеивать мелкие части
+                .config("spark.sql.adaptive.skewJoin.enabled", "true")           # Обработка перекосов данных
+                .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "128mb") # целевой размер раздела при склейке
+                #.config("spark.jars.packages", "ml.dmlc:xgboost4j-spark_2.12:1.4.1")
+                #.config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
+                #.config("spark.jars.packages","com.microsoft.azure:synapseml_2.12:0.11.1")
+                #.config("spark.sql.execution.arrow.pyspark.enabled", "true")
+                #.config("spark.jars.excludes", "io.netty:netty-transport-native-kqueue,io.netty:netty-resolver-dns-native-macos")
+                #.config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true") 
                 .getOrCreate()
         )
 
@@ -309,7 +324,7 @@ def learning(
     else:
         spark = (
             SparkSession.builder
-                .appName("Spark ML Prepair")
+                .appName("Spark ML Learning")
                 # Пути к Python (чтобы не было конфликтов версий)
                 #.config("spark.pyspark.python", "/usr/bin/python3")
                 #.config("spark.pyspark.driver.python", "/usr/bin/python3")
@@ -332,8 +347,9 @@ def learning(
                 .config("spark.sql.adaptive.coalescePartitions.enabled", "true") # Склеивать мелкие части
                 .config("spark.sql.adaptive.skewJoin.enabled", "true")           # Обработка перекосов данных
                 .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "128mb") # целевой размер раздела при склейке
-
-                # сетевой таймаут
+                # сеть
+                .config("spark.driver.host", "127.0.0.1")
+                .config("spark.driver.bindAddress", "127.0.0.1")
                 .config("spark.network.timeout", "600s")
                 .getOrCreate()
         )
@@ -368,6 +384,7 @@ def learning(
     # чтобы не занимать лишнее место + fillna
     # =====================================================
     PI = math.pi
+    #df = df.limit(100000)
     df = df \
         .withColumn("hour", F.hour("tx_datetime")) \
         .withColumn("is_night", F.when((F.col("hour") >= 0) & (F.col("hour") < 6), 1).otherwise(0)) \
@@ -381,6 +398,8 @@ def learning(
         .withColumn("day_sin", F.sin(2 * PI * F.col("day_of_week") / 7)) \
         .withColumn("day_cos", F.cos(2 * PI * F.col("day_of_week") / 7))  
 
+
+    #print(df.columns)
     # считаем поля -отношения
     rate_cols = ["term_tx_amount_avg_30d_hist","term_tx_amount_avg_7d_hist",
              "term_tx_amount_std_30d_hist","term_tx_amount_std_7d_hist",
@@ -392,8 +411,6 @@ def learning(
     #заполняем null значения
     df = df.fillna(0)
     
-  
-
     # =====================================================
     # Разделение даных  train/test, добавление весов
     # =====================================================
@@ -406,6 +423,8 @@ def learning(
 
     #считаем и добавляем в датасет веса
     train_weighted = get_waighted_data(train,eval_col="tx_fraud")
+    #train_weighted = train
+    #train_weighted = train_weighted.repartition(140)
 
     #a = train_weighted.limit(1)
     #logger.warning(str(a))
@@ -414,7 +433,7 @@ def learning(
     # Подготовка вектора признаков и инициализация модели
     # =====================================================
     
-    #определяем количественные признаки:
+    #определяем признаки на удаление:
     to_remove_cols = [  'terminal_id',
                         'transaction_id',
                         'tx_datetime',
@@ -444,26 +463,73 @@ def learning(
         maxDepth=5,      # для бустинга лучше небольшая глубина
         stepSize=0.1,    # скорость обучения (learning rate)
         seed=42,
-        #weightCol="weight",
+        weightCol="weight",
         #maxMemoryInMB = 1024,
         #maxBins = 64,
         #subsamplingRate = 0.3,
         #checkpointInterval=10
         )
 
+    # gbt = LightGBMClassifier(
+    #         labelCol="tx_fraud",
+    #         featuresCol="features",
+    #         numIterations=300,
+    #         learningRate=0.03,
+    #         numLeaves=64,
+    #         maxDepth=-1,
+    #         minDataInLeaf=50,
+    #         featureFraction=0.8,
+    #         baggingFraction=0.8,
+    #         baggingFreq=1,
+    #         lambdaL2=1.0,
+    #         isUnbalance=True,
+    #         #seed=42
+    #     )
 
+    # gbt = LightGBMClassifier(
+    #     labelCol="tx_fraud",
+    #     featuresCol="features",
+    #     numIterations=50,
+    #     maxDepth=5,
+    #     learningRate=0.1,
+    #     numTasks = 2,
+    #     numThreads=1,
+    #     maxBin=63,
+    #     #useBarrierExecutionMode=True
+    # )
+
+    # gbt = XGBoostClassifier(
+    #     featuresCol="features", 
+    #     labelCol="label",
+    #     # Основные настройки ресурсов
+    #     num_workers=4,          # Должно совпадать с local[4]
+    #     nthread=1,              # 1 поток на каждый воркер (чтобы не перегрузить CPU)
+        
+    #     # Параметры модели
+    #     max_depth=6,
+    #     eta=0.1,
+    #     num_round=100,
+    #     objective="binary:logistic",
+        
+    #     # Трюки для экономии памяти
+    #     use_external_memory=True, # Если данных много, будет использовать диск
+    #     tree_method="hist",       # Гистограммный метод (быстрее и меньше ест RAM)
+    #     missing=0.0               # Явно укажите значение для пропусков
+    # )
+    
     # =====================================================
     # Обучение, подсчёт метрик и сохранение модели
     # =====================================================
     
     #инициализация клиента, подключаемся к уже существующему эксперименту, если он есть
     client = MlflowClient()
-    experiment_name = f"Anti-Fraud-System2"
+    experiment_name = f"Anti-Fraud-System_Validation2"
     experiment = client.get_experiment_by_name(experiment_name)
     if experiment and not isinstance(experiment,str):
         experiment_id = experiment.experiment_id
     else:
         experiment = client.create_experiment(experiment_name)
+        experiment = client.get_experiment_by_name(experiment_name)
         experiment_id = experiment.experiment_id
 
     # Включаем автологирование (запишет параметры GBTClassifier и должна саму модель, 
@@ -581,4 +647,4 @@ def main() -> None:
 if __name__ == "__main__":
     main()
 
-#python ./learning.py --in-path=./out_folder --log-stats --local &> output.log
+#python ./learning.py --in-path=./out_folder_for_ml --log-stats --local &> output.log

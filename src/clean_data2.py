@@ -184,21 +184,16 @@ def clear_data(
         spark = (
             SparkSession.builder
                 .appName("Spark ML Clean Data")
-                # 1. Используем все ядра (16), но оставляем 1-2 для системы
-                .master("local[14]")
-                # 2. Память Драйвера (в локальном режиме это основная настройка)
-                # Выделяем 16-20 ГБ, чтобы спокойно делать .toPandas() и обучать модели
-                .config("spark.driver.memory", "18g")
-                # 3. Лимит на размер объектов, собираемых на драйвере (увеличиваем для тяжелых операций)
-                .config("spark.driver.maxResultSize", "8g")
-                # 4. Включаем современные оптимизации 2025 года (Adaptive Query Execution)
-                .config("spark.sql.adaptive.enabled", "true")
-                # 5. Оптимизация работы с памятью при передаче данных в Pandas
-                .config("spark.sql.execution.arrow.pyspark.enabled", "true")
+                .master("local[14]") \
+                .config("spark.driver.memory", "16g") \
+                .config("spark.sql.shuffle.partitions", "28") \
+                .config("spark.driver.maxResultSize", "4g") \
+                .config("spark.sql.adaptive.enabled", "true") \
+                .config("spark.local.dir", "/media/rk/2TB/spark_tmp") \
                 .getOrCreate()
         )
 
-        #spark.conf.set('spark.sql.repl.eagerEval.enabled', True)  # to pretty print pyspark.DataFrame in jupyter
+    #spark.conf.set('spark.sql.repl.eagerEval.enabled', True)  # to pretty print pyspark.DataFrame in jupyter
 
     else:
         spark = (
@@ -474,7 +469,7 @@ if __name__ == "__main__":
 
 
 #python clean_data.py \
-#--hdfs-path="/media/rk/500гб/Обучение/MLOps/16 Валидация данных/data" \
-#--s3-bucket-path="/media/rk/500гб/Обучение/MLOps/16 Валидация данных/data_parquet" \
+#--in-path="in_folder" \
+#--out-path="out_folder" \
 #--log-stats \
 #--local

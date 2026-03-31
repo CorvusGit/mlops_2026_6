@@ -156,7 +156,7 @@ def add_aggregated_features(df, target_col, windows, agg_types=["count", "avg"],
         # Базовые агрегаты
         if "count" in agg_types or "avg" in agg_types or "isnew" in agg_types:
             count_col = f"{prefix}{target_col}_cn_{win_name}"
-            df = df.withColumn(count_col, F.count(target_col).over(win_spec))
+            df = df.withColumn(count_col, F.count(F.lit(1)).over(win_spec))
         
         if "sum" in agg_types or "avg" in agg_types:
             sum_col = f"{prefix}temp_sum_{win_name}"
@@ -234,7 +234,7 @@ def add_ratio_features_simple(df, target_col, hist_agg_cols,drop_hist=False):
     
 def add_aggregated_features_for_heavy(df, partition_cols, time_col, target_col, 
                                       windows_definitions, 
-                                      bucket_interval=60,
+                                      bucket_interval=3600,
                                       agg_types=['count'],
                                       include_current=True,
                                       end_of_current=0,
@@ -260,7 +260,7 @@ def add_aggregated_features_for_heavy(df, partition_cols, time_col, target_col,
     agg_ops = []
 
     if need_count or need_avg:
-        agg_ops.append(F.count(target_col).alias("_b_cnt"))
+        agg_ops.append(F.count(F.lit(1)).alias("_b_cnt"))
     
     if need_sum or need_avg:
         agg_ops.append(F.sum(target_col).alias("_b_sum"))
@@ -288,9 +288,11 @@ def add_aggregated_features_for_heavy(df, partition_cols, time_col, target_col,
         if need_std:
             sum_sq_col = f"{prefix}_{target_col}_sum_sq_{win_name}"
             df_buckets = df_buckets.withColumn(sum_sq_col+"_hist", F.sum("_b_sum_sq").over(win_spec))
-
+    
+    df_buckets = df_buckets.drop("_b_sum", "_b_cnt", "_b_sum_sq")
+    
     # добавляем к текущему датасету
-    df_final = df_with_buckets.join(df_buckets.drop("_b_sum", "_b_cnt", "_b_sum_sq"), 
+    df_final = df_with_buckets.join(df_buckets, 
                                     on=[*partition_cols, "_bucket"], how="left")
     
     # расчитываем в текущем бакете
@@ -299,85 +301,85 @@ def add_aggregated_features_for_heavy(df, partition_cols, time_col, target_col,
                           .rangeBetween(Window.unboundedPreceding, end_of_current)
         
         if need_count or need_avg or need_std:
-            curr_cnt = F.count(target_col).over(win_local)
+            curr_cnt = F.count(F.lit(1)).over(win_local)
         if need_sum or need_avg:
             curr_sum = F.sum(target_col).over(win_local)
         if need_std:
             curr_sum_sq = F.sum(F.col(target_col)**2).over(win_local)
     else:
-        # Если текущий не нужен, инкремент равен нулю
+        # Если текущий не нужен
         curr_sum = curr_cnt = curr_sum_sq = F.lit(0)
 
     
     
     # объединение исторических и текущих
     drop_list = ["_bucket"]
+    
     for win_name in windows_definitions.keys():
         # Берем историю из Join (если ее нет — 0)
+        
         if need_count or need_avg or need_std:
-            count_col = f"{prefix}_{target_col}_cn_{win_name}"
-            h_cnt = F.coalesce(F.col(count_col+"_hist"), F.lit(0))
-            curr_sum = F.coalesce(curr_sum,F.lit(0))
-            total_cnt = h_cnt + curr_cnt
-            drop_list.append(count_col+"_hist")
+            final_count_col = f"{prefix}_{target_col}_cn_{win_name}"
+            final_h_cnt = F.coalesce(F.col(final_count_col+"_hist"), F.lit(0))
+            final_curr_cnt = F.coalesce(curr_cnt,F.lit(0))
+            total_cnt = final_h_cnt + final_curr_cnt
+            drop_list.append(final_count_col+"_hist")
+        
         if need_sum or need_avg:
-            sum_col = f"{prefix}_{target_col}_sum_{win_name}"
-            h_sum = F.coalesce(F.col(sum_col+"_hist"), F.lit(0))
-            curr_cnt = F.coalesce(curr_cnt,F.lit(0))
-            total_sum = h_sum + curr_sum
-            drop_list.append(sum_col+"_hist")
+            final_sum_col = f"{prefix}_{target_col}_sum_{win_name}"
+            final_h_sum = F.coalesce(F.col(final_sum_col+"_hist"), F.lit(0))
+            final_curr_sum = F.coalesce(curr_sum,F.lit(0))
+            total_sum = final_h_sum + final_curr_sum
+            drop_list.append(final_sum_col+"_hist")
+        
         if need_std:
-            sum_sq_col = f"{prefix}_{target_col}_sum_sq_{win_name}"
-            h_sum_sq = F.coalesce(F.col(sum_sq_col+"_hist"), F.lit(0))
-            curr_sum_sq = F.coalesce(curr_sum_sq,F.lit(0))
-            total_sum_sq = h_sum_sq + curr_sum_sq
+            final_sum_sq_col = f"{prefix}_{target_col}_sum_sq_{win_name}"
+            final_h_sum_sq = F.coalesce(F.col(final_sum_sq_col+"_hist"), F.lit(0))
+            final_curr_sum_sq = F.coalesce(curr_sum_sq,F.lit(0))
+            total_sum_sq = final_h_sum_sq + final_curr_sum_sq
             
             std_col_name = f"{prefix}_{target_col}_std_{win_name}"
-            variance = (total_sum_sq / total_cnt) - ( (total_sum / total_cnt)**2 )
+            
+            variance = F.when(total_cnt > 1,
+                                (total_sum_sq / total_cnt) - ( (total_sum / total_cnt)**2 )
+                            ).otherwise(F.lit(0))
+            
             df_final = df_final.withColumn(std_col_name,
                         F.when(total_cnt > 1, F.sqrt(F.greatest(F.lit(0), variance))).otherwise(F.lit(0)))
             
-            drop_list.append(sum_sq_col+"_hist")
+            drop_list.append(final_sum_sq_col+"_hist")
 
    
         if need_count:
-            df_final = df_final.withColumn(count_col, total_cnt)
+            df_final = df_final.withColumn(final_count_col, total_cnt)
         if need_sum:
-            df_final = df_final.withColumn(sum_col, total_sum)
+            df_final = df_final.withColumn(final_sum_col, total_sum)
         if need_avg:
             avg_col_name = f"{prefix}_{target_col}_avg_{win_name}"
             df_final = df_final.withColumn(avg_col_name,
-                        F.when(total_cnt > 0, total_sum / total_cnt).otherwise(F.col(target_col)))
+                        F.when(total_cnt > 0, total_sum / total_cnt).otherwise(F.lit(0)))
 
     # Финальная чистка технических колонок
     df_final = df_final.drop(*drop_list)
     #print(drop_list)
     return df_final
 
-def get_count_risk_rolling_window_spark(df,full_colls, delay_cols, del_in_cols = True):
+def get_count_risk_rolling_window_spark(df,full_colls, del_in_cols = True):
     """подсчёт риска терминалов"""
-    col_delay_sum = [col for col in delay_cols if "_sum_" in col][0]
-    col_delay_cn = [col for col in delay_cols if "_cn_" in col][0]
 
     drop_list = []
     for sum_col_name,cn_col_name in full_colls:
-       
-        # Вычитаем задержку, чтобы получить чистое окно в прошлом
-        nb_fraud_window = F.col(sum_col_name) - F.col(col_delay_sum)
-        nb_tx_window = F.col(cn_col_name) - F.col(col_delay_cn)
         
-        # Считаем риск (используем nullif во избежание деления на ноль)
-        risk_window = nb_fraud_window / F.when(nb_tx_window == 0, None).otherwise(nb_tx_window)
+        # Считаем риск 
+        risk_window = F.col(sum_col_name) / F.when(F.col(cn_col_name) == 0, None).otherwise(F.col(cn_col_name))
         
         # Добавляем колонки
-        df = df.withColumn(f"{cn_col_name}_delay", F.coalesce(nb_tx_window, F.lit(0))) \
+        df = df.withColumn(f"{cn_col_name}_delay", F.coalesce(F.col(cn_col_name), F.lit(0))) \
                .withColumn(f"{sum_col_name.replace('_sum_','_risk_')}_delay", F.coalesce(risk_window, F.lit(0.0)))
 
         drop_list.append(sum_col_name)
         drop_list.append(cn_col_name)
         
-    drop_list.append(col_delay_sum)
-    drop_list.append(col_delay_cn)
 
     if del_in_cols:
         df = df.drop(*drop_list)
@@ -420,20 +422,17 @@ def prepair_data(
         print("LOCAL RUN !!!")
         spark = (
             SparkSession.builder
-                .appName("Spark ML Prepair Data")
+                .appName("Spark ML Clean Data")
                 .master("local[14]")
-                .config("spark.driver.memory", "18g")
-                # Лимит на размер объектов, собираемых на драйвере (увеличиваем для тяжелых операций)
-                .config("spark.driver.maxResultSize", "8g")
-                # Включаем оптимизации AQE
+                .config("spark.driver.memory", "20g")
+                .config("spark.sql.shuffle.partitions", "64")
+                .config("spark.driver.maxResultSize", "4g")
+                .config("spark.local.dir", "/media/rk/2TB/spark_tmp")
+                # Адаптивность
                 .config("spark.sql.adaptive.enabled", "true")
-                # Оптимизация работы с памятью при передаче данных в Pandas
-                .config("spark.sql.execution.arrow.pyspark.enabled", "false")
-                #.config("spark.sql.adaptive.skewJoin.enabled", "true")
-                #.config("spark.driver.extraJavaOptions", "--add-opens=java.base/java.nio=ALL-UNNAMED")
-                #.config("spark.executor.extraJavaOptions", "--add-opens=java.base/java.nio=ALL-UNNAMED")
-                #.config("spark.jars.packages", "com.microsoft.azure:synapseml_2.12:0.11.1") \
-                #.config("spark.jars.repositories", "https://mmlspark.azureedge.net") \
+                .config("spark.sql.adaptive.coalescePartitions.enabled", "true") # Склеивать мелкие части
+                .config("spark.sql.adaptive.skewJoin.enabled", "true")           # Обработка перекосов данных
+                .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "128mb") # целевой размер раздела при склейке
                 .getOrCreate()
         )
 
@@ -510,22 +509,23 @@ def prepair_data(
     WEEK = 7 * 24 * 3600
     MONTH = 30 * 24 * 3600
     TMIN = 1*60
-    bucket_interval = 3600 # для подсчёта терминалов
 
-    #создаём дополнительную колонку unix_time, переводим tx_fraud в int
-    features_df = df.withColumn("unix_time", F.col("TX_DATETIME").cast("long"))
-    features_df = features_df.withColumn("tx_fraud", col("tx_fraud").cast(IntegerType()))
-    features_df.columns
+    bucket_interval = 3600*2 # для подсчёта терминалов
 
     # Определяем временные границы для "прогрева" признаков
     # Дата самой первой транзакции, чтобы отсчитать от нее 30 дней - время прогрева
-    min_date = features_df.select(F.min("unix_time")).collect()[0][0]
-    max_date = features_df.select(F.max("unix_time")).collect()[0][0]
-    start_training_date = min_date + 3600*24*30+3600
+    min_date = df.select(F.min(F.col("TX_DATETIME").cast("long"))).collect()[0][0]
+    max_date = df.select(F.max(F.col("TX_DATETIME").cast("long"))).collect()[0][0]
+    start_training_date = min_date + MONTH
 
     if LOG:
         logger.info(f'del: {datetime.fromtimestamp(min_date)} --> {datetime.fromtimestamp(start_training_date)}')
         logger.info(f'keep: {datetime.fromtimestamp(start_training_date)} --> {datetime.fromtimestamp(max_date)}')
+
+
+    #создаём дополнительную колонку unix_time, переводим tx_fraud в int
+    features_df = df.withColumn("unix_time", F.col("TX_DATETIME").cast("long"))
+    features_df = features_df.withColumn("tx_fraud", col("tx_fraud").cast(IntegerType()))
 
 
     # определяем основные окна
@@ -533,8 +533,8 @@ def prepair_data(
     TIME_COL = "unix_time"
 
     # задаём параметры окон
-    ct_win_defs = {"30d_hist": (-DAY*30-1, -1),
-                   "7d_hist": (-DAY*7-1, -1)}
+    ct_win_defs = {"30d_hist": (-MONTH, -1),
+                   "7d_hist": (-DAY*7, -1)}
 
     win_defs_current = {
                 "7d_full": (-WEEK, 0),
@@ -542,11 +542,22 @@ def prepair_data(
                 "1h_full": (-HOUR, 0),
             }
 
-
     win_defs_hist = {
-                "30d_hist": (-MONTH-HOUR, -HOUR),
-                "7d_hist": (-WEEK-HOUR, -HOUR),
-                "1d_hist": (-DAY-HOUR, -HOUR),
+                "30d_hist": (-MONTH, -WEEK),
+                "7d_hist": (-WEEK, -DAY),
+                "1d_hist": (-DAY, -HOUR),
+            }
+    
+    win_defs_current_backet = {
+                "7d_full": (-WEEK, -bucket_interval-1),
+                "1d_full": (-DAY, -bucket_interval-1),
+                "1h_full": (-bucket_interval-2, -bucket_interval-1),
+            }
+    
+    win_defs_hist_backet = {
+                "30d_hist": (-MONTH, -DAY -bucket_interval-1),
+                "7d_hist": (-WEEK, -DAY -bucket_interval-1),
+                "1d_hist": (-DAY, -HOUR -bucket_interval-1),
             }
 
     # инициализируем окна по клиенту
@@ -579,7 +590,7 @@ def prepair_data(
     # статистики по терминалу текущие 
     # (терминал обрабатывается другими функциями, использующими подсчёт по батчам + текущие статистики внутри батча)
     features_df = add_aggregated_features_for_heavy(features_df, ['terminal_id'], TIME_COL, 'tx_amount', 
-                                        win_defs_current, 
+                                        win_defs_current_backet, 
                                         bucket_interval=bucket_interval, 
                                         agg_types=["avg","count"],
                                         include_current=True,
@@ -587,10 +598,8 @@ def prepair_data(
                                         prefix='term')
 
     # статистики по терминалу исторические
-    # features_df = add_aggregated_features(features_df,'tx_amount', win_term_current, agg_types=["count", "avg","std"])
-
     features_df = add_aggregated_features_for_heavy(features_df, ['terminal_id'], TIME_COL, 'tx_amount', 
-                                        win_defs_hist, 
+                                        win_defs_hist_backet, 
                                         bucket_interval=bucket_interval, 
                                         agg_types=["avg","count",'std'],
                                         include_current=False,
@@ -600,7 +609,7 @@ def prepair_data(
 
     # подсчёт новых клиентов на терминале за 30 дней
     features_df = add_aggregated_features_for_heavy(features_df, ['terminal_id'], TIME_COL, 'tx_amount_isnew_ct_30d_hist', 
-                                        win_defs_current,
+                                        win_defs_current_backet,
                                         bucket_interval=bucket_interval, 
                                         agg_types=["sum"],
                                         include_current=False,
@@ -609,7 +618,7 @@ def prepair_data(
 
     # подсчёт новых клиентов на терминале за 7 дней
     features_df = add_aggregated_features_for_heavy(features_df, ['terminal_id'], TIME_COL, 'tx_amount_isnew_ct_7d_hist', 
-                                        win_defs_current,
+                                        win_defs_current_backet,
                                         bucket_interval=bucket_interval, 
                                         agg_types=["sum"],
                                         include_current=False,
@@ -617,38 +626,31 @@ def prepair_data(
                                         prefix='term')
 
     # подсчёт риска терминала
-    win_delay_fraud  = {
-                "7d_delay": (-WEEK, 0)
-            }
+    #win_delay_fraud  = {
+    #            "7d_delay": (-WEEK, 0)
+    #        }
 
     win_fraud  = {
-                "1d_full": (-WEEK-DAY, 0),
-                "7d_full": (-WEEK-WEEK, 0)
+                "1d_full": (-WEEK-DAY, -WEEK),
+                "7d_full": (-WEEK-WEEK, -WEEK),
+                #три недели
+                "21d_full": (-MONTH, -WEEK)
             }
 
-    # получаем базовое окно задержки для вычитания
-    features_df = add_aggregated_features_for_heavy(features_df, ['terminal_id'], TIME_COL, 'tx_fraud', 
-                                        win_delay_fraud,
-                                        bucket_interval=bucket_interval, 
-                                        agg_types=["sum","count"],
-                                        include_current=False,
-                                        end_of_current=0,
-                                        prefix='fraud')
-
-    # считаем полные окна с задержкой 
+    # получаем исторические данные на момент неделю назад
     features_df = add_aggregated_features_for_heavy(features_df, ['terminal_id'], TIME_COL, 'tx_fraud', 
                                         win_fraud,
-                                        bucket_interval=3600, 
+                                        bucket_interval=bucket_interval, 
                                         agg_types=["sum","count"],
-                                        include_current=False,
+                                        include_current=True,
                                         end_of_current=0,
                                         prefix='fraud')
 
+    #подсчёт риска терминала
     features_df = get_count_risk_rolling_window_spark(features_df,
-                                                [('fraud_tx_fraud_sum_1d_full','fraud_tx_fraud_cn_1d_full'),
-                                                    ('fraud_tx_fraud_sum_7d_full','fraud_tx_fraud_cn_7d_full')], 
-                                                ['fraud_tx_fraud_cn_7d_delay',
-                                                'fraud_tx_fraud_sum_7d_delay'],
+                                                    [('fraud_tx_fraud_sum_1d_full','fraud_tx_fraud_cn_1d_full'),
+                                                    ('fraud_tx_fraud_sum_7d_full','fraud_tx_fraud_cn_7d_full'),
+                                                    ('fraud_tx_fraud_sum_21d_full','fraud_tx_fraud_cn_21d_full')],
                                                     del_in_cols = True)
 
     # Убираем первую неделю, чтобы убрать записи, где признаки не успели накопиться
@@ -708,20 +710,8 @@ if __name__ == "__main__":
 # --log-stats \
 # --local
 
-# yc dataproc job submit spark \
-#   --cluster-name otus-dataproc-cluster \
-#   --name clean-fraud-data \
-#   --main-python-file infra\scripts\clean_data.py \
-#   --args "--hdfs-path=/user/ubuntu/data/2022-11-04.txt --s3-bucket-path=s3a://otus-bucket3-b1gukkncvsp3tvci7gp3/data "
-
-
-#spark-submit s3a://otus-bucket3-b1gukkncvsp3tvci7gp3/scpts/clean_data.py \
-#--hdfs-path /user/ubuntu/data/2022-11-04.txt \
-#--s3-bucket-path s3a://otus-bucket3-b1gukkncvsp3tvci7gp3/data
-
-
-#python clean_data.py \
-#--hdfs-path="/media/rk/500гб/Обучение/MLOps/16 Валидация данных/data" \
-#--s3-bucket-path="/media/rk/500гб/Обучение/MLOps/16 Валидация данных/data_parquet" \
-#--log-stats \
-#--local
+# python ./proc_for_ml_data.py \
+# --in-path="out_folder" \
+# --out-path="out_folder_for_ml" \
+# --log-stats \
+# --local

@@ -11,3 +11,7 @@ yc storage s3 cp  \
 s3://airflow-bucket-ca6801007a3abc72/output_data_for_ml/ \
 s3://otus-bucket3-b1gukkncvsp3tvci7gp3/output_data_for_ml/ \
 --recursive
+
+
+terraform apply -auto-approve
+terraform apply -auto-approve
