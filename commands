@@ -21,7 +21,7 @@ s3://airflow-bucket-4374720c7f47f349/output_data_for_ml/ \
 terraform apply -auto-approve
 terraform destroy -auto-approve
 
-ssh -L 5005:localhost:5005 ubuntu@89.169.158.12
+ssh -L 5005:localhost:5005 ubuntu@46.21.245.210
 
 
 docker-compose build --no-cache
