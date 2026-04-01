@@ -1,0 +1,85 @@
+version: "3.9"
+
+services:
+  postgres:
+    build: ./postgres_docker
+    container_name: mlflow-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      AWS_ACCESS_KEY_ID: ${YC_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${YC_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
+    ports:
+      - "5455:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mlflow:
+    build: ./mlflow_docker
+    container_name: mlflow
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5005:5005"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      AWS_ACCESS_KEY_ID: ${YC_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${YC_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET}
+      MLFLOW_S3_ENDPOINT_URL: https://storage.yandexcloud.net
+    command: >
+      mlflow server
+      --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      --artifacts-destination s3://${S3_BUCKET}/artifacts
+      --host 0.0.0.0
+      --port 5005
+
+  backup:
+    build: ./postgres_docker
+    container_name: mlflow-backup
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      S3_BUCKET: ${S3_BUCKET}
+      AWS_ACCESS_KEY_ID: ${YC_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${YC_SECRET_KEY}
+      BACKUP_INTERVAL: ${BACKUP_INTERVAL}
+    entrypoint: >
+      /bin/sh -c "
+        export PGPASSWORD=$POSTGRES_PASSWORD;
+        while true; do
+          sleep ${BACKUP_INTERVAL};
+          DATE=$$(date +%Y-%m-%d_%H-%M-%S);
+          FILE=/tmp/mlflow_$$DATE.sql.gz;
+
+          echo 'Creating backup...';
+          pg_dump -h postgres -U $POSTGRES_USER -d $POSTGRES_DB | gzip > $$FILE;
+
+          echo 'Uploading to S3...';
+          aws --endpoint-url=https://storage.yandexcloud.net s3 cp $$FILE s3://$S3_BUCKET/backups/;
+
+          rm -f $$FILE;
+          echo 'Backup done';
+        done
+      "
+
+volumes:
+  pgdata:

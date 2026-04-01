@@ -2,16 +2,27 @@ yc storage s3 cp s3://otus-bucket2-b1gukkncvsp3tvci7gp3/2019-08-22.txt s3://airf
 
 cat /var/log/cloud-init-output.log
 
-yc storage s3 cp s3://otus-bucket2-b1gukkncvsp3tvci7gp3/2019-08-22.txt s3://airflow-bucket-ca6801007a3abc72/input_data/2019-08-22.txt
-yc storage s3 cp s3://otus-bucket2-b1gukkncvsp3tvci7gp3/2019-09-21.txt s3://airflow-bucket-ca6801007a3abc72/input_data/2019-09-21.txt
-yc storage s3 cp s3://otus-bucket2-b1gukkncvsp3tvci7gp3/2019-10-21.txt s3://airflow-bucket-ca6801007a3abc72/input_data/2019-10-21.txt
+yc storage s3 cp s3://otus-bucket2-b1gukkncvsp3tvci7gp3/2019-08-22.txt s3://airflow-bucket-03e9d67e7316f4e5/input_data/2019-08-22.txt
+yc storage s3 cp s3://otus-bucket2-b1gukkncvsp3tvci7gp3/2019-09-21.txt s3://airflow-bucket-03e9d67e7316f4e5/input_data/2019-09-21.txt
+yc storage s3 cp s3://otus-bucket2-b1gukkncvsp3tvci7gp3/2019-10-21.txt s3://airflow-bucket-03e9d67e7316f4e5/input_data/2019-10-21.txt
 yc storage s3 cp s3://otus-bucket2-b1gukkncvsp3tvci7gp3/2019-11-20.txt s3://airflow-bucket-ca6801007a3abc72/input_data/2019-11-20.txt
 
 yc storage s3 cp  \
-s3://airflow-bucket-ca6801007a3abc72/output_data_for_ml/ \
+s3://airflow-bucket-03e9d67e7316f4e5/output_data_for_ml/ \
 s3://otus-bucket3-b1gukkncvsp3tvci7gp3/output_data_for_ml/ \
+--recursive
+
+yc storage s3 cp  \
+s3://otus-bucket3-b1gukkncvsp3tvci7gp3/output_data_for_ml/ \
+s3://airflow-bucket-4374720c7f47f349/output_data_for_ml/ \
 --recursive
 
 
 terraform apply -auto-approve
-terraform apply -auto-approve
+terraform destroy -auto-approve
+
+ssh -L 5005:localhost:5005 ubuntu@89.169.158.12
+
+
+docker-compose build --no-cache
+docker-compose up -d
