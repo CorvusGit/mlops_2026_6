@@ -34,7 +34,7 @@ import seaborn as sns
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="mlflow")
 
-from synapse.ml.lightgbm import LightGBMClassifier
+#from synapse.ml.lightgbm import LightGBMClassifier
 #from yv add import XGBoostClassifier
 
 #import os
